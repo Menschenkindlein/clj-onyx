@@ -51,8 +51,7 @@
                 (and (= turn (get board cell))
                      (not (get visited cell))))]
        (loop [[union visited] [{} {}]
-              cells (filter (complement cell/pseudo-node?)
-                            (keys board))]
+              cells (keys board)]
          (if (empty? cells)
            union
            (let [[nxt & rst] cells
@@ -62,9 +61,7 @@
                           dfs
                           [(assoc union child nxt)
                            (assoc visited child true)]
-                          (if (cell/pseudo-node? child)
-                            []
-                            (cell/neighbours child brd)))
+                          (cell/neighbours child brd))
                          [union visited]))]
              (if (good-node? nxt visited)
                (recur ;; we've got a new union
@@ -76,6 +73,15 @@
                (recur [union visited] rst))))))))
 
 #_(get-union (starting-board))
+#_(get-union {:turn :black,
+              :size 12,
+              :board {[7 1] :black,
+                      [7 12] :black,
+                      :bottom :black,
+                      :top :black,
+                      [6 1] :black,
+                      [6 12] :black,
+                      [12 12] :black}})
 
 (defn get-union-cell
   "Assumes that the cell is occupied by the relevant color."
