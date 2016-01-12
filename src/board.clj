@@ -34,7 +34,7 @@
   [cell {:keys [board] :as the-board}]
   (and (cell/valid-cell? cell the-board)
        (not (get board cell))
-       (or (not (vector? (first cell)))
+       (or (not (cell/square-center? cell))
            (every? #(valid-move? % the-board)
                    (cell/neighbours cell the-board)))))
 
@@ -51,7 +51,8 @@
                 (and (= turn (get board cell))
                      (not (get visited cell))))]
        (loop [[union visited] [{} {}]
-              cells (filter vector? (keys board))]
+              cells (filter (complement cell/pseudo-node?)
+                            (keys board))]
          (if (empty? cells)
            union
            (let [[nxt & rst] cells
@@ -61,9 +62,9 @@
                           dfs
                           [(assoc union child nxt)
                            (assoc visited child true)]
-                          (if (vector? child)
-                            (cell/neighbours child brd)
-                            []))
+                          (if (cell/pseudo-node? child)
+                            []
+                            (cell/neighbours child brd)))
                          [union visited]))]
              (if (good-node? nxt visited)
                (recur ;; we've got a new union
@@ -101,7 +102,7 @@
                  (cell/neighbours cell brd)))]
     (reduce #(assoc %1 %2 cell)
             union
-            (set cells))))
+            (distinct cells))))
 
 #_(connect [5 1] (starting-board))
 
@@ -134,18 +135,18 @@
   "If it is possible to capture anything, remove them from
    the board, and set the opposite color's union to `nil`
    as irrelevant."
-  [{:keys [board turn unions] :as brd} cell]
+  [{:keys [turn] :as brd} cell]
   (let [squares (cell/squares cell brd)]
     (if (empty? squares)
       brd
-      (-> (assoc brd :unions (dissoc unions (opposite-turn turn)))
-          (assoc :board
-                 (reduce
-                  #(dissoc %1 %2)
-                  board
+      (-> brd
+          (update :unions dissoc (opposite-turn turn))
+          (update :board
+                  (partial reduce
+                           #(dissoc %1 %2))
                   (mapcat #(when (relevant-square? % brd)
                              (:corners %))
-                          squares)))))))
+                         squares))))))
 
 #_(let [brd {:turn :white
              :size 12
@@ -157,31 +158,37 @@
                      [3 1] :white}}]
     (capture brd [3 1]))
 
-(defn move
-  "Return a new board."
-  [cell {:keys [turn board] :as brd}]
-  (-> brd
-      (assoc-in [:board cell] turn)
-      (assoc-in [:unions turn] (connect cell brd))
-      (capture cell)
-      (assoc :turn (opposite-turn turn))))
-
-#_(move [1 2] (starting-board))
-
-;; TODO use updated union
 (defn victory?
-  "If relevant opposite sides of the board are connected.
-   Note, that it is checked after the move is done."
+  "Check if the relevant opposite sides of the board are connected.
+   Also, return a union that is updated while checking."
   [{:keys [turn] :as brd}]
-  (let [[one another] (case (opposite-turn turn)
+  (let [[one another] (case turn
                         :white [:left :right]
                         :black [:top :bottom])
         union (get-union
-               (assoc brd :turn (opposite-turn turn)))]
-    (= (first (get-union-cell one union))
-       (first (get-union-cell another union)))))
+               (assoc brd :turn turn))
+        [one union] (get-union-cell one union)
+        [another union] (get-union-cell another union)]
+    [(= one another) union]))
 
-#_(victory? (->> (starting-board 4)
-                 (move [2 2])   ; b
-                 (move [3 3])   ; w
-                 (move [2 3]))) ; b victory
+#_(-> (starting-board 4)
+      (move [2 2])   ; b
+      first
+      (move [3 3])   ; w
+      first
+      (move [2 3])) ; b victory
+
+(defn move
+  "Return a new board and whether it was a victorious move."
+  [{:keys [turn board] :as brd} cell]
+  (let [brd (-> brd
+                (assoc-in [:board cell] turn)
+                (assoc-in [:unions turn] (connect cell brd))
+                (capture cell))
+        [result union] (victory? brd)]
+    [(-> brd
+         (assoc-in [:unions turn] union)
+         (assoc :turn (opposite-turn turn)))
+     result]))
+
+#_(move (starting-board) [1 2])

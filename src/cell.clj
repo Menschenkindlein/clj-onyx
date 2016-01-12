@@ -1,5 +1,13 @@
 (ns cell)
 
+(defn pseudo-node?
+  [x]
+  (keyword? x))
+
+(defn square-center?
+  [x]
+  (vector? (first x)))
+
 (defn valid-cell?
   [cell {:keys [size]}]
   (every? #(<= 1 % size) (flatten cell)))
@@ -12,9 +20,10 @@
   "Return the neighbours of the given cell
    in the context of the current board
    (size and turn)"
-  [[x y] {:keys [size turn] :as board}]
-  (if (vector? x) ; the center of the square
-    (concat (map vector x y) (map vector x (reverse y)))
+  [[x y :as cell] {:keys [size turn] :as board}]
+  (if (square-center? cell)
+    (concat (map vector x y)
+            (map vector x (reverse y)))
     (concat
      (cond ; on the border we have pseudo-nodes for connectivity
        (and (= x 1)    (= turn :white)) [:left]
@@ -23,17 +32,16 @@
        (and (= y size) (= turn :black)) [:bottom])
      (filter #(valid-cell? % board)
              (let [xy [x y]
-                   vect (partial into [])
-                   tupler (comp vect sort vector)
+                   tupler (comp vec sort vector)
                    direction (if (= (even? x) (even? y))
                                [1 -1]
                                [1 1])
                    diagonal (map (partial * (if (even? y) 1 -1))
                                  [(first direction)
                                   (* (second direction) -1)])]
-               [(vect (map tupler xy (map + xy direction)))
-                (vect (map tupler xy (map - xy direction)))
-                (vect (map + xy diagonal))
+               [(mapv tupler xy (map + xy direction))
+                (mapv tupler xy (map - xy direction))
+                (mapv + xy diagonal)
                 [x (+ y 1)]
                 [x (- y 1)]
                 [(+ x 1) y]
@@ -50,14 +58,13 @@
    It's a helper function for capture detection."
   [[x y] {:keys [size] :as board}]
   (let [xy [x y]
-        vect (partial into [])
-        tupler (comp vect sort vector)
+        tupler (comp vec sort vector)
         direction (if (= (even? x) (even? y))
                     [1 -1]
                     [1 1])]
-    (filter (comp #(valid-cell? % board) :opposite)
-            (map #(let [opposite (vect (map % xy direction))]
-                    {:center (vect (map tupler xy opposite))
+    (filter #(valid-cell? (:opposite %) board)
+            (map #(let [opposite (mapv % xy direction)]
+                    {:center (mapv tupler xy opposite)
                      :opposite opposite
                      :corners [[(first xy) (second opposite)]
                                [(first opposite) (second xy)]]})
