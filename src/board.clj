@@ -2,6 +2,10 @@
 
 ;; (defrecord Board [size board turn unions])
 
+;; A turn in the board is like last turn.
+;; When move is done, it takes control over the board,
+;; setting its turn to its color.
+
 (defn starting-board
   "Pseudo-nodes for sides and two nodes in the middle
    of each side."
@@ -9,7 +13,7 @@
    (starting-board 12))
   ([size]
    (let [half (int (/ size 2))]
-     {:turn :black
+     {:turn :white ; like last move
       :size size
       :board {:left :white  ; pseudo-nodes
               :right :white ; for sides
@@ -55,21 +59,26 @@
          (if (empty? cells)
            union
            (let [[nxt & rst] cells
-                 dfs (fn dfs [[union visited] child]
+                 dfs (fn dfs [[union visited count] child]
                        (if (good-node? child visited)
                          (reduce
                           dfs
                           [(assoc union child nxt)
-                           (assoc visited child true)]
+                           (assoc visited child true)
+                           (+ count 1)]
                           (cell/neighbours child brd))
-                         [union visited]))]
+                         [union visited count]))]
              (if (good-node? nxt visited)
-               (recur ;; we've got a new union
-                (reduce dfs
-                        [(assoc union nxt nxt)
-                         (assoc visited nxt true)]
-                        (cell/neighbours nxt brd))
-                rst)
+               ;; we've got a new union
+               (let [[union visited count]
+                     (reduce dfs
+                             [union
+                              (assoc visited nxt true)
+                              1]
+                             (cell/neighbours nxt brd))]
+                (recur
+                 [(assoc union nxt [nxt count]) visited]
+                 rst))
                (recur [union visited] rst))))))))
 
 #_(get-union (starting-board))
@@ -84,33 +93,36 @@
                       [12 12] :black}})
 
 (defn get-union-cell
-  "Assumes that the cell is occupied by the relevant color."
+  "Returns a root cell together with the count of its descendants.
+   Assumes that the cell is occupied by the relevant color."
   [cell union]
   (let [parent (get union cell)]
-    (if (= parent cell)
-      [parent union]
-      (let [[real-parent new-union] (get-union-cell parent union)]
-        [real-parent (assoc new-union cell real-parent)]))))
+    (if (nil? parent) ; [cell count] never coincides with a real cell
+      cell
+      (get-union-cell parent union))))
 
 #_(get-union-cell :top (connect [1 1] (starting-board)))
 
 (defn connect
   "Given a new position on a board, return a new union."
   [cell {:keys [board turn] :as brd}]
-  (let [[cells union]
-        (reduce
-         (fn [[cells union] cell]
-           (let [[new-cell new-union]
-                 (get-union-cell cell union)]
-             [(conj cells new-cell) new-union]))
-         [[cell] (get-union brd)]
-         (filter #(= turn (get board %))
-                 (cell/neighbours cell brd)))]
-    (reduce #(assoc %1 %2 cell)
-            union
-            (distinct cells))))
+  (let [union (get-union brd)
+        cells (->> (cell/neighbours cell brd)
+                   (filter #(= turn (get board %)))
+                   (map #(get-union-cell % union))
+                   distinct
+                   (sort #(> (second %1) (second %2))))
+        count (reduce + (map second cells))
+        cells (map first cells)]
+    (if (empty? cells)
+      (assoc union cell [cell 1])
+      (let [[best-cell & cells] cells]
+        (reduce #(assoc %1 %2 best-cell)
+                (assoc union best-cell [best-cell (+ count 1)])
+                (conj cells cell))))))
 
 #_(connect [5 1] (starting-board))
+#_(connect [5 5] (starting-board))
 
 (defn opposite-turn
   [turn]
@@ -171,30 +183,23 @@
   (let [[one another] (case turn
                         :white [:left :right]
                         :black [:top :bottom])
-        union (get-union
-               (assoc brd :turn turn))
-        [one union] (get-union-cell one union)
-        [another union] (get-union-cell another union)]
-    [(= one another) union]))
+        union (get-union brd)]
+    (= (get-union-cell one union)
+       (get-union-cell another union))))
 
-#_(-> (starting-board 4)
-      (move [2 2])   ; b
-      first
-      (move [3 3])   ; w
-      first
-      (move [2 3])) ; b victory
+#_ (victory? (-> (starting-board 4)
+                 (move [2 2])                    ; b
+                 (move [3 3])                    ; w
+                 (move [2 3])))                  ; b victory
 
 (defn move
   "Return a new board and whether it was a victorious move."
   [{:keys [turn board] :as brd} cell]
-  (let [brd (-> brd
-                (assoc-in [:board cell] turn)
-                (assoc-in [:unions turn] (connect cell brd))
-                (capture cell))
-        [result union] (victory? brd)]
-    [(-> brd
-         (assoc-in [:unions turn] union)
-         (assoc :turn (opposite-turn turn)))
-     result]))
+  (let [turn (opposite-turn turn)
+        brd (assoc brd :turn turn)]
+    (-> brd
+        (assoc-in [:board cell] turn)
+        (assoc-in [:unions turn] (connect cell brd))
+        (capture cell))))
 
 #_(move (starting-board) [1 2])
