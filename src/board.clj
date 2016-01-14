@@ -1,9 +1,10 @@
-(ns board)
+(ns board
+  (:require cell))
 
 ;; (defrecord Board [size board turn unions])
 
-;; A turn in the board is like last turn.
-;; When move is done, it takes control over the board,
+;; A turn in the board is like the last turn.
+;; When move is being done, it takes control over the board,
 ;; setting its turn to its color.
 
 (defn starting-board
