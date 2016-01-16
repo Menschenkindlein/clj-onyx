@@ -155,17 +155,19 @@
    the board, and set the opposite color's union to `nil`
    as irrelevant."
   [{:keys [turn] :as brd} cell]
-  (let [squares (cell/squares cell brd)]
-    (if (empty? squares)
-      brd
-      (-> brd
-          (update :unions dissoc (opposite-turn turn))
-          (update :board
-                  (partial reduce
-                           #(dissoc %1 %2))
-                  (mapcat #(when (relevant-square? % brd)
-                             (:corners %))
-                         squares))))))
+  (if (cell/square-center? cell)
+    brd
+    (let [squares (cell/squares cell brd)]
+      (if (empty? squares)
+        brd
+        (-> brd
+            (update :unions dissoc (opposite-turn turn))
+            (update :board
+                    (partial reduce
+                             #(dissoc %1 %2))
+                    (mapcat #(when (relevant-square? % brd)
+                               (:corners %))
+                            squares)))))))
 
 #_(let [brd {:turn :white
              :size 12
