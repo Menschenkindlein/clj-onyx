@@ -6,15 +6,28 @@
 
 (defn square-center?
   [x]
-  (vector? (first x)))
+  (and (vector? x)
+       (vector? (first x))))
+
+#_(square-center? :bottom)
 
 (defn valid-cell?
+  "Is it a real cell:
+   - does it fit the board?
+   - is it a valid square center?"
   [cell {:keys [size]}]
-  (every? #(<= 1 % size) (flatten cell)))
+  (and (every? #(<= 1 % size) (flatten cell))
+       (if (square-center? cell)
+         (let [[[x1 x2] [y1 y2]] cell]
+           (and (= 1 (- x2 x1))
+                (= 1 (- y2 y1))
+                (not (= (odd? x1) (odd? y1)))))
+         true)))
 
 #_(valid-cell? [1 0] {:size 12})
 #_(valid-cell? [[1 0] [1 2]] {:size 12})
-#_(valid-cell? [[1 1] [1 2]] {:size 12})
+#_(valid-cell? [[1 2] [1 2]] {:size 12})
+#_(valid-cell? [[1 2] [2 3]] {:size 12})
 
 (defn neighbours
   "Return the neighbours of the given cell
