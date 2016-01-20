@@ -43,6 +43,7 @@
         :bottom (map #(vector % size) line)))
     (let [[x y] cell]
       (if (square-center? cell)
+        ;; the order is important for `gui.clj`
         (concat (map vector x y)
                 (map vector x (reverse y)))
         (concat
@@ -80,7 +81,7 @@
    It's a helper function for capture detection."
   [[x y] {:keys [size] :as board}]
   (let [xy [x y]
-        tupler (comp vec sort vector)
+        tupler (comp vec sort vector) ; order is important for gui
         direction (if (= (even? x) (even? y))
                     [1 -1]
                     [1 1])]
