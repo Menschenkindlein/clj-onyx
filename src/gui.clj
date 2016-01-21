@@ -1,7 +1,9 @@
 (ns gui
   (:use [seesaw core graphics])
   (:require board
-            cell))
+            cell
+            game
+            ai))
 
 (native!)
 
@@ -115,11 +117,69 @@
                                     (board/starting-board)
                                     {:scale 50})))
 
-(defn new-game []
-  (let [f (frame :title "Onyx"
-                :minimum-size [625 :by 655]
-                :content (canvas :id :board
-                                 :background "#AACCAA"
-                                 :paint #(draw-board! %2
-                                                      (board/starting-board)
-                                                      {:scale 50})))]))
+(defn square [x] (* x x))
+
+(defn from-coords
+  [[x0 y0 :as cell] brd {:keys [scale] :as config}]
+  (let [diff (int (/ scale 2))
+        [x y] (mapv #(+ (int (/ (- % diff)
+                                scale))
+                        1)
+                    cell)]
+    (->> (concat
+          (for [x1 (range (- x 1) (+ x 2))
+                y1 (range (- y 1) (+ y 2))]
+            [x1 y1])
+          (for [x1 (range (- x 1) (+ x 2))
+                y1 (range (- y 1) (+ y 2))]
+            [[x1 (+ x1 1)] [y1 (+ y1 1)]]))
+         (filter #(cell/valid-cell? % brd))
+         (map #(vector %
+                       (let [[x2 y2] (coordinates % brd config)]
+                         (+ (square (- x0 x2))
+                            (square (- y0 y2))))))
+         (sort #(< (second %1) (second %2)))
+         first
+         first)))
+
+#_(from-coords (coordinates [7 4] (board/starting-board) {:scale 50})
+               (board/starting-board)
+               {:scale 50})
+
+(defn click-reader
+  [brd config f move]
+  (let [listener
+        (-> f
+            (select [:#board])
+            (listen :mouse-clicked
+                    #(let [mv (from-coords [(.getX %) (.getY %)]
+                                           brd
+                                           config)]
+                       (if (board/valid-move? mv brd)
+                         (deliver move mv)
+                         (alert (.getSource %) "Wrong move")))))]
+    (future (do (deref move) (listener)))))
+
+(defn make-gui-player
+  [player-name player-fn]
+  (let [config {:scale 50}
+        f (frame :title (str "Onyx: " player-name)
+                 :minimum-size [625 :by 655]
+                 :content (canvas :id :board
+                                  :background "#AACCAA"))]
+    (-> f pack! show!)
+    (fn [brd]
+      (let [move (promise)]
+        (future
+          (do (-> f
+                  (select [:#board])
+                  (config! :paint #(draw-board! %2
+                                                brd
+                                                config)))
+              (player-fn brd config f move)))
+        (deref move)))))
+
+#_(game/play-game ai/random
+                  (make-gui-player
+                   "Unsoppable genius"
+                   click-reader))
