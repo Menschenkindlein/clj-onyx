@@ -168,18 +168,29 @@
                  :content (canvas :id :board
                                   :background "#AACCAA"))]
     (-> f pack! show!)
-    (fn [brd]
-      (let [move (promise)]
-        (future
-          (do (-> f
-                  (select [:#board])
-                  (config! :paint #(draw-board! %2
-                                                brd
-                                                config)))
-              (player-fn brd config f move)))
-        (deref move)))))
+    (fn
+      ([brd message]
+       (do (-> f
+               (select [:#board])
+               (config! :paint #(draw-board! %2
+                                             brd
+                                             config)))
+           (alert f message)
+           (dispose! f)))
+      ([brd]
+       (let [move (promise)]
+         (future
+           (do (-> f
+                   (select [:#board])
+                   (config! :paint #(draw-board! %2
+                                                 brd
+                                                 config)))
+               (player-fn brd config f move)))
+         (deref move))))))
 
-#_(game/play-game ai/random
+#_(game/play-game (make-gui-player
+                   "Unstoppable genius"
+                   click-reader)
                   (make-gui-player
-                   "Unsoppable genius"
+                   "Unstoppable genius 2"
                    click-reader))

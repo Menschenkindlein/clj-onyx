@@ -18,26 +18,34 @@
          brd1 (board/move brd (player1 brd))
          p2-first-move (player2 brd1)
          pie? (not (board/valid-move? p2-first-move brd))]
-     (loop [brd (if pie?
-                  brd1
-                  (board/move brd1 p2-first-move))]
-       (let [move ((if ((if pie? not identity)
-                        (= :white (:turn brd)))
-                     player1
-                     player2)
-                   brd)]
-         (if (board/valid-move? move brd)
-           (let [new-brd (board/move brd move)]
-             (if (board/victory? new-brd)
-               (if ((if pie? not identity)
-                    (= :white (:turn new-brd)))
-                 2
-                 1)
-               (recur new-brd)))
-           (if ((if pie? not identity)
-                (= :white (:turn brd)))
-             2
-             1)))))))
+     (letfn [(first-player-wins [brd]
+               (future (player1 brd "You win!"))
+               (future (player2 brd "You lost!"))
+               1)
+             (second-player-wins [brd]
+               (future (player2 brd "You win!"))
+               (future (player1 brd "You lost!"))
+               2)]
+       (loop [brd (if pie?
+                    brd1
+                    (board/move brd1 p2-first-move))]
+         (let [move ((if ((if pie? not identity)
+                          (= :white (:turn brd)))
+                       player1
+                       player2)
+                     brd)]
+           (if (board/valid-move? move brd)
+             (let [new-brd (board/move brd move)]
+               (if (board/victory? new-brd)
+                 (if ((if pie? not identity)
+                      (= :white (:turn new-brd)))
+                   (second-player-wins new-brd)
+                   (first-player-wins new-brd))
+                 (recur new-brd)))
+             (if ((if pie? not identity)
+                  (= :white (:turn brd)))
+               (second-player-wins brd)
+               (first-player-wins brd)))))))))
 
 #_(play-game #(do (println "P1:" %) (read))
              #(do (println "P2:" %) (read))
