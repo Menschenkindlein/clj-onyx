@@ -181,12 +181,21 @@
        (let [move (promise)]
          (future
            (do (-> f
+                   (config! :title (str "Onyx: " player-name))
                    (select [:#board])
                    (config! :paint #(draw-board! %2
                                                  brd
                                                  config)))
                (player-fn brd config f move)))
-         (deref move))))))
+         (let [move (deref move)]
+           (-> f
+               (config! :title (str "Onyx: " player-name " ...waiting..."))
+               (select [:#board])
+               (config! :paint
+                        #(draw-board! %2
+                                      (board/move brd move)
+                                      config)))
+           move))))))
 
 #_(game/play-game (make-gui-player
                    "Unstoppable genius"
