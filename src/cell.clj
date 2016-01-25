@@ -95,3 +95,14 @@
 
 #_(squares [2 2] {:size 12})
 #_(squares [2 1] {:size 12})
+
+(defn all-cells [{:keys [size] :as brd}]
+  (filter
+    #(valid-cell? % brd)
+    (concat
+     (for [x (range 1 (+ size 1))
+           y (range 1 (+ size 1))]
+       [x y])
+     (for [x (range 1 size)
+           y (range 1 size)]
+       [[x (+ x 1)] [y (+ y 1)]]))))

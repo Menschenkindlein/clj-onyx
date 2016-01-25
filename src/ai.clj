@@ -1,17 +1,44 @@
 (ns ai
-  (:require board))
+  (:require board
+            cell))
 
 (defn random
   "Make a move at a random (valid) position."
   ([brd message] message)
-  ([{:keys [size] :as brd}]
-   (letfn [(next []
-             (let [x (+ (rand-int size) 1)
-                   y (+ (rand-int size) 1)]
-               (if (zero? (rand-int 4))
-                 [[x (+ x 1)] [y (+ y 1)]]
-                 [x y])))]
-     (loop [cell (next)]
-       (if (board/valid-move? cell brd)
-         cell
-         (recur (next)))))))
+  ([brd]
+   (loop [[cell & rest] (shuffle (cell/all-cells brd))]
+     (if (board/valid-move? cell brd)
+       cell
+       (recur rest)))))
+
+(defn score-board
+  "Euristic to assign a score to the position."
+  [{:keys [turn board] :as brd}]
+  (+ (if (board/victory? brd) 999999999 0)
+     (- (count (filter #(= turn (second %)) board))
+        (count (filter #(= (board/opposite-turn turn) (second %))
+                       board)))))
+
+(defn minimax
+  "Make a move with the best score on the provided depth"
+  ([brd message] message)
+  ([{:keys [turn] :as brd}]
+   (letfn [(iter [n brd]
+             (->> (shuffle (cell/all-cells brd))
+                  (filter #(board/valid-move? % brd))
+                  (map (fn [move]
+                         (let [brd (board/move brd move)
+                               brd (if (or (zero? n)
+                                           (board/victory? brd))
+                                     brd
+                                     (last (iter (- n 1) brd)))
+                               score (score-board brd)
+                               score (if (= turn (:turn brd))
+                                       (* score -1)
+                                       score)]
+                           [move score brd])))
+                  (sort #(> (second %1) (second %2)))
+                  first))]
+     (first (iter 1 brd)))))
+
+#_(game/play-game random minimax)

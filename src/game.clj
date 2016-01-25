@@ -47,6 +47,4 @@
                (second-player-wins brd)
                (first-player-wins brd)))))))))
 
-#_(play-game #(do (println "P1:" %) (read))
-             #(do (println "P2:" %) (read))
-             4)
+#_(play-game ai/random ai/minimax)

@@ -200,6 +200,4 @@
 #_(game/play-game (make-gui-player
                    "Unstoppable genius"
                    click-reader)
-                  (make-gui-player
-                   "Unstoppable genius 2"
-                   click-reader))
+                  ai/minimax)
