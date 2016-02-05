@@ -73,33 +73,20 @@
                              (or (> (first %) x)
                                  (> (second %) y))))
                      (cell/neighbours cell brd)))]
-    (do
-      (when (cell/square-center? cell)
-        ;; here we use the fact that neighbours of
-        ;; the square center are created in a certain order
-        (let [[x1y1 x2y2 x1y2 x2y1] neighbours]
-          (draw-square! g x1y1 x1y2 x2y2 x2y1)))
-      (doall
-       (map #(draw-line! g cell-coords %) neighbours)))))
+    (when (cell/square-center? cell)
+      ;; here we use the fact that neighbours of
+      ;; the square center are created in a certain order
+      (let [[x1y1 x2y2 x1y2 x2y1] neighbours]
+        (draw-square! g x1y1 x1y2 x2y2 x2y1)))
+    (doseq [neighbour neighbours]
+      (draw-line! g cell-coords neighbour))))
 
 (defn draw-board!
   [g {:keys [size board] :as brd} config]
-  (do
-    (doall
-     (map #(draw-cell! g % brd config)
-          (for [x (range 1 (+ size 1))
-                y (range 1 (+ size 1))]
-            [x y])))
-    (doall
-     (map #(draw-cell! g % brd config)
-          (filter
-           #(cell/valid-cell? % brd)
-           (for [x (range 1 size)
-                 y (range 1 size)]
-             [[x (+ x 1)] [y (+ y 1)]]))))
-    (doall
-     (map #(draw-stone! g (first %) (second %) brd config)
-          board))))
+  (doseq [cell (cell/all-cells brd)]
+    (draw-cell! g cell brd config))
+  (doseq [[cell color] board]
+    (draw-stone! g cell color brd config)))
 
 #_(def f (frame :title "Onyx"
                 :minimum-size [625 :by 655]
@@ -117,30 +104,21 @@
                                     (board/starting-board)
                                     {:scale 50})))
 
-(defn square [x] (* x x))
+(defn distance-squared
+  [[x1 y1] [x2 y2]]
+  (letfn [(square [x] (* x x))]
+    (+ (square (- x1 x2))
+       (square (- y1 y2)))))
 
 (defn from-coords
-  [[x0 y0 :as cell] brd {:keys [scale] :as config}]
-  (let [diff (int (/ scale 2))
-        [x y] (mapv #(+ (int (/ (- % diff)
-                                scale))
-                        1)
-                    cell)]
-    (->> (concat
-          (for [x1 (range (- x 1) (+ x 2))
-                y1 (range (- y 1) (+ y 2))]
-            [x1 y1])
-          (for [x1 (range (- x 1) (+ x 2))
-                y1 (range (- y 1) (+ y 2))]
-            [[x1 (+ x1 1)] [y1 (+ y1 1)]]))
-         (filter #(cell/valid-cell? % brd))
-         (map #(vector %
-                       (let [[x2 y2] (coordinates % brd config)]
-                         (+ (square (- x0 x2))
-                            (square (- y0 y2))))))
-         (sort #(< (second %1) (second %2)))
-         first
-         first)))
+  "Given a cell coordinates on the plane, return its in-game coordinates."
+  [cell brd {:keys [scale] :as config}]
+  (->> (cell/all-cells brd)
+       (map #(vector % (distance-squared (coordinates % brd config)
+                                         cell)))
+       (sort #(< (second %1) (second %2)))
+       first
+       first))
 
 #_(from-coords (coordinates [7 4] (board/starting-board) {:scale 50})
                (board/starting-board)
