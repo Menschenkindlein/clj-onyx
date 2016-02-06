@@ -109,57 +109,65 @@
                {:scale 50})
 
 (defn click-reader
-  [brd config f move]
-  (let [listener
-        (-> f
-            (select [:#board])
-            (listen :mouse-clicked
-                    #(let [mv (from-coords [(.getX %) (.getY %)]
-                                           brd
-                                           config)]
-                       (if (board/valid-move? mv brd)
-                         (deliver move mv)
-                         (alert (.getSource %) "Wrong move")))))]
-    (future (do (deref move) (listener)))))
+  [config f brd]
+  (let [move (promise)
+        listener (-> f
+                     (select [:#board])
+                     (listen :mouse-clicked
+                             #(let [mv (from-coords [(.getX %) (.getY %)]
+                                                    brd
+                                                    config)]
+                                (if (board/valid-move? mv brd)
+                                  (deliver move mv)
+                                  (alert (.getSource %) "Wrong move")))))]
+    (deref move)
+    (listener)
+    (deref move)))
 
 (defn make-gui-player
-  [player-name player-fn]
-  (let [config {:scale 50}
-        f (frame :title (str "Onyx: " player-name)
-                 :minimum-size [625 :by 655]
-                 :content (canvas :id :board
-                                  :background "#AACCAA"))]
-    (-> f pack! show!)
-    (fn
-      ([brd message]
-       (do (-> f
-               (select [:#board])
-               (config! :paint #(draw-board! %2
-                                             brd
-                                             config)))
-           (alert f message)
-           (dispose! f)))
-      ([brd]
-       (let [move (promise)]
-         (future
-           (do (-> f
-                   (config! :title (str "Onyx: " player-name))
-                   (select [:#board])
-                   (config! :paint #(draw-board! %2
-                                                 brd
-                                                 config)))
-               (player-fn brd config f move)))
-         (let [move (deref move)]
-           (-> f
-               (config! :title (str "Onyx: " player-name " ...waiting..."))
-               (select [:#board])
-               (config! :paint
-                        #(draw-board! %2
-                                      (board/move brd move)
-                                      config)))
-           move))))))
+  [player-name player-fn f config]
+  (fn
+    ([brd message]
+     (-> f
+         (select [:#board])
+         (config! :paint #(draw-board! %2
+                                       brd
+                                       config)))
+     (alert f (str player-name ", " message)))
+    ([brd]
+     (let [move (do (-> f
+                        (config! :title (str "Onyx: " player-name))
+                        (select [:#board])
+                        (config! :paint #(draw-board! %2
+                                                      brd
+                                                      config)))
+                    (player-fn config f brd))]
+       (-> f
+           (config! :title (str "Onyx: " player-name " ...waiting..."))
+           (select [:#board])
+           (config! :paint
+                    #(draw-board! %2
+                                  (board/move brd move)
+                                  config)))
+       move))))
 
-#_(game/play-game (make-gui-player
-                   "Unstoppable genius"
-                   click-reader)
-                  ai/minimax)
+(defn make-game-frame []
+  (-> (frame :title "Onyx"
+             :minimum-size [625 :by 655]
+             :content (canvas :id :board
+                              :background "#AACCAA"))
+      pack!
+      show!))
+
+#_(let [config {:scale 50}
+        f (make-game-frame)]
+    (game/play-game (make-gui-player
+                     "Unstoppable genius"
+                     click-reader
+                     f
+                     config)
+                    (make-gui-player
+                     "Wonderful thinker"
+                     click-reader
+                     f
+                     config)))
