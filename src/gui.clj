@@ -88,22 +88,6 @@
   (doseq [[cell color] board]
     (draw-stone! g cell color brd config)))
 
-#_(def f (frame :title "Onyx"
-                :minimum-size [625 :by 655]
-                :content (canvas :id :board
-                                 :background "#AACCAA"
-                                 :paint #(draw-board! %2
-                                                      (board/starting-board)
-                                                      {:scale 50}))))
-
-#_(-> f pack! show!)
-
-#_(-> f
-      (select [:#board])
-      (config! :paint #(draw-board! %2
-                                    (board/starting-board)
-                                    {:scale 50})))
-
 (defn distance-squared
   [[x1 y1] [x2 y2]]
   (letfn [(square [x] (* x x))]
