@@ -81,12 +81,20 @@
     (doseq [neighbour neighbours]
       (draw-line! g cell-coords neighbour))))
 
+(defn calculate-config
+  "Calculate the optimal distance between cells"
+  [g {:keys [size]}]
+  { :scale (int (/ (-> (.getSize g)
+                       (#(min (.getHeight %) (.getWidth %))))
+                   (+ size tg15))) })
+
 (defn draw-board!
-  [g {:keys [size board] :as brd} config]
-  (doseq [cell (cell/all-cells brd)]
-    (draw-cell! g cell brd config))
-  (doseq [[cell color] board]
-    (draw-stone! g cell color brd config)))
+  [g {:keys [size board] :as brd}]
+  (let [config (calculate-config (.getComponent (.getDestination g)) brd)]
+   (doseq [cell (cell/all-cells brd)]
+     (draw-cell! g cell brd config))
+   (doseq [[cell color] board]
+     (draw-stone! g cell color brd config))))
 
 (defn distance-squared
   [[x1 y1] [x2 y2]]
@@ -109,8 +117,9 @@
                {:scale 50})
 
 (defn click-reader
-  [config f brd]
-  (let [move (promise)
+  [f brd]
+  (let [config (calculate-config (select f [:#board]) brd)
+        move (promise)
         listener (-> f
                      (select [:#board])
                      (listen :mouse-clicked
@@ -125,30 +134,23 @@
     (deref move)))
 
 (defn make-gui-player
-  [player-name player-fn f config]
+  [player-name player-fn f]
   (fn
     ([brd message]
      (-> f
          (select [:#board])
-         (config! :paint #(draw-board! %2
-                                       brd
-                                       config)))
+         (config! :paint #(draw-board! %2 brd)))
      (alert f (str player-name ", " message)))
     ([brd]
      (let [move (do (-> f
                         (config! :title (str "Onyx: " player-name))
                         (select [:#board])
-                        (config! :paint #(draw-board! %2
-                                                      brd
-                                                      config)))
-                    (player-fn config f brd))]
+                        (config! :paint #(draw-board! %2 brd)))
+                    (player-fn f brd))]
        (-> f
            (config! :title (str "Onyx: " player-name " ...waiting..."))
            (select [:#board])
-           (config! :paint
-                    #(draw-board! %2
-                                  (board/move brd move)
-                                  config)))
+           (config! :paint #(draw-board! %2 (board/move brd move))))
        move))))
 
 (defn make-game-frame []
@@ -159,15 +161,12 @@
       pack!
       show!))
 
-#_(let [config {:scale 50}
-        f (make-game-frame)]
+#_(let [f (make-game-frame)]
     (game/play-game (make-gui-player
                      "Unstoppable genius"
                      click-reader
-                     f
-                     config)
+                     f)
                     (make-gui-player
                      "Wonderful thinker"
                      click-reader
-                     f
-                     config)))
+                     f)))
