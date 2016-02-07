@@ -10,7 +10,10 @@
 
 (deftask play []
   (let [config {:scale 50}
-        f (gui/make-game-frame)]
+        f (gui/make-game-frame)
+        end (promise)
+        listener (seesaw.core/listen
+                  f :window-closing (fn [_] (deliver end true)))]
     (game/play-game (gui/make-gui-player
                      "Unstoppable genius"
                      gui/click-reader
@@ -20,4 +23,5 @@
                      "Wonderful thinker"
                      gui/click-reader
                      f
-                     config))))
+                     config))
+    (deref end)))
