@@ -14,14 +14,15 @@
         end (promise)
         listener (seesaw.core/listen
                   f :window-closing (fn [_] (deliver end true)))]
-    (game/play-game (gui/make-gui-player
-                     "Unstoppable genius"
-                     gui/click-reader
-                     f
-                     config)
-                    (gui/make-gui-player
-                     "Wonderful thinker"
-                     gui/click-reader
-                     f
-                     config))
+    (future
+      (game/play-game (gui/make-gui-player
+                       "Unstoppable genius"
+                       gui/click-reader
+                       f
+                       config)
+                      (gui/make-gui-player
+                       "Wonderful thinker"
+                       gui/click-reader
+                       f
+                       config)))
     (deref end)))
