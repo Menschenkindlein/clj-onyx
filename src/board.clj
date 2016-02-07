@@ -16,6 +16,8 @@
    (let [half (int (/ size 2))]
      {:turn :white ; like last move
       :size size
+      :counts {:white 2
+               :black 2}
       :board {:left :white  ; pseudo-nodes
               :right :white ; for sides
               [1 half] :white       ; and two nodes
@@ -160,14 +162,17 @@
     (let [squares (cell/squares cell brd)]
       (if (empty? squares)
         brd
-        (-> brd
-            (update :unions dissoc (opposite-turn turn))
-            (update :board
-                    (partial reduce
-                             #(dissoc %1 %2))
-                    (mapcat #(when (relevant-square? % brd)
+        (let [removed (mapcat #(when (relevant-square? % brd)
                                (:corners %))
-                            squares)))))))
+                              squares)]
+          (-> brd
+              (update :unions dissoc (opposite-turn turn))
+              (update :board
+                      (partial reduce
+                               #(dissoc %1 %2))
+                      removed)
+              (update-in [:counts (opposite-turn turn)]
+                         #(- % (count removed)))))))))
 
 #_(let [brd {:turn :white
              :size 12
@@ -202,6 +207,7 @@
         brd (assoc brd :turn turn)]
     (-> brd
         (assoc-in [:board cell] turn)
+        (update-in [:counts turn] inc)
         (assoc-in [:unions turn] (connect cell brd))
         (capture cell))))
 

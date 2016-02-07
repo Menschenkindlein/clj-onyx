@@ -13,11 +13,10 @@
 
 (defn score-board
   "Euristic to assign a score to the position."
-  [{:keys [turn board] :as brd}]
+  [{:keys [turn board counts] :as brd}]
   (+ (if (board/victory? brd) 999999999 0)
-     (- (count (filter #(= turn (second %)) board))
-        (count (filter #(= (board/opposite-turn turn) (second %))
-                       board)))))
+     (- (get counts turn)
+        (get counts (board/opposite-turn turn)))))
 
 (defn minimax
   "Make a move with the best score on the provided depth"

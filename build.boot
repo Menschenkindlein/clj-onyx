@@ -6,7 +6,7 @@
                  [seesaw "1.4.5"]]
  :resource-paths #{"src"})
 
-(require 'gui 'game)
+(require 'gui 'game 'ai)
 
 (deftask play []
   (let [f (gui/make-game-frame)
@@ -18,6 +18,8 @@
                        "Unstoppable genius"
                        gui/click-reader
                        f)
+                      ai/minimax
+                      #_
                       (gui/make-gui-player
                        "Wonderful thinker"
                        gui/click-reader
